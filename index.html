@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>💡 苹果 App 限免精选</title>
-    <!-- 引入 Tailwind CSS CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased min-h-screen pb-12">
@@ -22,12 +21,20 @@
         <div class="bg-white border-2 border-dashed border-blue-200 rounded-2xl p-4 space-y-3">
             <h2 class="text-sm font-bold text-blue-600">🛠️ 极速发布控制台</h2>
             <input type="text" id="admin-url" placeholder="粘贴 App Store 链接或输入应用 ID" class="w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20">
-            <!-- 新增：兑换码直达链接输入框 -->
             <input type="text" id="admin-redeem" placeholder="[可选] 兑换码/礼品卡直达链接（无则留空）" class="w-full px-3 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20">
-            <div class="grid grid-cols-2 gap-2">
-                <input type="text" id="admin-tag" placeholder="标签(默认:内购限免)" class="px-3 py-2 border rounded-xl text-sm">
-                <input type="password" id="admin-pwd" placeholder="发布口令" class="px-3 py-2 border rounded-xl text-sm">
+            
+            <div class="grid grid-cols-3 gap-2">
+                <!-- 💡 新增：商店区域选择下拉框 -->
+                <select id="admin-region" class="px-3 py-2 border rounded-xl text-sm bg-white">
+                    <option value="us">🇺🇸 美区 (US)</option>
+                    <option value="cn">🇨🇳 国区 (CN)</option>
+                    <option value="jp">🇯🇵 日区 (JP)</option>
+                    <option value="hk">🇭🇰 港区 (HK)</option>
+                </select>
+                <input type="text" id="admin-tag" placeholder="标签(默认:内购限免)" class="px-3 py-2 border rounded-xl text-sm col-span-2">
             </div>
+
+            <input type="password" id="admin-pwd" placeholder="发布口令" class="w-full px-3 py-2 border rounded-xl text-sm">
             <button id="admin-submit-btn" class="w-full py-2 bg-blue-600 text-white font-bold text-sm rounded-xl cursor-pointer">一键抓取并发布</button>
         </div>
     </div>
@@ -35,9 +42,8 @@
     <!-- 检索和过滤区 -->
     <div class="max-w-2xl mx-auto px-4 mt-4 space-y-4">
         <div class="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-3 text-xs">
-            提示：微信内无法跳转请点击右上角 <span class="font-bold">···</span> 选择 <span class="font-bold">在浏览器中打开</span> 即可直达 App Store。
+            提示：跨区应用（如美区）需切换至对应的 Apple ID 账号方可下载或兑换。
         </div>
-        <!-- 搜索框 -->
         <input type="text" id="search-input" placeholder="🔍 输入关键字搜索..." class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm shadow-xs focus:ring-2 focus:ring-blue-500/20">
         <!-- 分类标签 -->
         <div class="flex items-center space-x-2 overflow-x-auto pb-1" id="category-tags">
@@ -57,7 +63,7 @@
     </footer>
 
     <script>
-        // 【注意】请将此处修改为您在 Cloudflare Worker 生成的真实访问网址（不以 / 结尾）
+        // 【注意】请将此处修改为您在 Cloudflare Worker 生成的真实访问网址
         const API_BASE = "https://free-app.tonnger1.workers.dev"; 
 
         let appsData = [], currentCategory = "all", searchQuery = "";
@@ -65,7 +71,6 @@
         const emptyState = document.getElementById('empty-state');
         const loadingState = document.getElementById('loading-state');
 
-        // 拉取数据
         async function fetchApps() {
             try {
                 const res = await fetch(`${API_BASE}/api/apps`);
@@ -77,7 +82,6 @@
             } catch (err) { loadingState.innerText = "数据加载失败，请刷新重试"; }
         }
 
-        // 构建分类按钮
         function buildTags() {
             const tagsBox = document.getElementById('category-tags');
             const cats = ['all', ...new Set(appsData.map(a => a.category))];
@@ -86,7 +90,6 @@
             `).join('');
         }
 
-        // 渲染列表
         function renderList() {
             const filtered = appsData.filter(a => {
                 return (currentCategory === "all" || a.category === currentCategory) &&
@@ -104,6 +107,8 @@
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center space-x-2">
                             <h3 class="text-base font-bold text-slate-900 truncate">${app.name}</h3>
+                            <!-- 💡 动态展示区域标签（如 US区、CN区） -->
+                            <span class="text-[10px] font-bold px-1.5 py-0.5 bg-purple-50 text-purple-600 rounded-md">${app.region || 'US'}</span>
                             <span class="text-[10px] font-bold px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-md">${app.tag}</span>
                         </div>
                         <p class="text-xs text-slate-400 mt-0.5">分类：${app.category}</p>
@@ -114,14 +119,14 @@
                                 <span class="text-xs text-slate-400 line-through">${app.originalPrice}</span>
                             </div>
                             
-                            <!-- 动态按钮区域：有兑换码时展示兑换按钮，无则自动隐藏 -->
                             <div class="flex items-center space-x-2">
                                 ${app.redeemUrl ? `
                                     <a href="${app.redeemUrl}" target="_blank" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-full transition-colors flex items-center space-x-1">
                                         <span>🎁 兑换码</span>
                                     </a>
                                 ` : ''}
-                                <a href="https://apps.apple.com/cn/app/id${app.id}" target="_blank" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-full transition-colors">获取</a>
+                                <!-- 💡 跳转链接根据区域智能适配，支持跨区商店直达 -->
+                                <a href="https://apps.apple.com/${app.region ? app.region.toLowerCase() : 'cn'}/app/id${app.id}" target="_blank" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-full transition-colors">获取</a>
                             </div>
                         </div>
                     </div>
@@ -129,7 +134,6 @@
             `).join('');
         }
 
-        // 事件监听
         document.getElementById('search-input').addEventListener('input', (e) => {
             searchQuery = e.target.value.toLowerCase().trim(); renderList();
         });
@@ -143,10 +147,10 @@
 
         if (window.location.search.includes('admin')) document.getElementById('admin-panel').classList.remove('hidden');
 
-        // 发布逻辑
         document.getElementById('admin-submit-btn').addEventListener('click', async () => {
             const appUrl = document.getElementById('admin-url').value.trim();
-            const redeemUrl = document.getElementById('admin-redeem').value.trim(); // 获取兑换码链接
+            const redeemUrl = document.getElementById('admin-redeem').value.trim();
+            const region = document.getElementById('admin-region').value; // 获取选择的发布区域
             const tag = document.getElementById('admin-tag').value.trim();
             const password = document.getElementById('admin-pwd').value.trim();
             if (!appUrl || !password) return alert("参数不能为空");
@@ -158,11 +162,11 @@
                 const res = await fetch(`${API_BASE}/api/add`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ appUrl, redeemUrl, tag, password })
+                    body: JSON.stringify({ appUrl, redeemUrl, region, tag, password })
                 });
                 const data = await res.json();
                 if (res.ok) {
-                    alert(`发布成功: 《${data.app.name}》`);
+                    alert(`发布成功 [${data.app.region}区]: 《${data.app.name}》`);
                     document.getElementById('admin-url').value = ""; 
                     document.getElementById('admin-redeem').value = "";
                     fetchApps();
